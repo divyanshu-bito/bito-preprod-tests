@@ -1,0 +1,406 @@
+---
+description: "Step-by-step guide for implementing new LLM providers with code examples, requirements, and best practices"
+globs:
+  - "providers/*.py"
+---
+
+# Provider Implementation Guide
+
+This guide provides detailed instructions for implementing new LLM providers in the system. All providers must follow the Factory Design Pattern and adhere to the established conventions.
+
+## Prerequisites
+
+Before implementing a new provider, ensure you have:
+1. Reviewed existing provider implementations (@providers/openai_provider.py, @providers/anthropic_provider.py)
+2. Understood the abstract base class contract (@providers/base.py)
+
+## Step-by-Step Implementation
+
+### Step 1: Create Provider File
+
+Create a new file in the `providers/` directory following the naming convention: `{provider_name}_provider.py`
+
+**Example**: `providers/deepseek_provider.py`, `providers/cohere_provider.py`
+
+### Step 2: Implement the Provider Class
+
+All providers MUST inherit from `LLMProvider` and follow this template:
+
+```python
+import os
+import httpx
+from .base import LLMProvider
+
+
+class ProviderNameProvider(LLMProvider):
+    """Brief description of the provider (e.g., DeepSeek API provider implementation)."""
+    
+    def __init__(self, model: str):
+        """
+        Initialize the provider with model and API credentials.
+        
+        Args:
+            model: The model identifier (e.g., "deepseek-chat")
+            
+        Raises:
+            ValueError: If API key environment variable is not set
+        """
+        super().__init__(model)
+        self.api_key = os.getenv("PROVIDER_API_KEY")
+        if not self.api_key:
+            raise ValueError("PROVIDER_API_KEY environment variable is not set")
+        self.api_url = "https://api.provider.com/v1/endpoint"
+    
+    def generate_response(self, prompt: str) -> str:
+        """
+        Generate a response using the Provider API.
+        
+        Args:
+            prompt: The input prompt/question
+            
+        Returns:
+            The generated text response
+            
+        Raises:
+            Exception: If API call fails
+        """
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}]
+        }
+        
+        try:
+            with httpx.Client(timeout=30.0) as client:
+                response = client.post(self.api_url, json=payload, headers=headers)
+                response.raise_for_status()
+                data = response.json()
+                return data["response_field"]  # Adjust based on API response structure
+        except Exception as e:
+            raise Exception(f"Provider API error: {str(e)}")
+```
+
+## Implementation Requirements
+
+### 1. Class Naming Convention
+
+- **Pattern**: `{ProviderName}Provider`
+- **Examples**: `OpenAIProvider`, `AnthropicProvider`, `DeepSeekProvider`
+- **Rule**: Use PascalCase, append "Provider" suffix
+
+### 2. Constructor (`__init__`) Requirements
+
+**MUST include:**
+
+1. **Call to super()**:
+   ```python
+   super().__init__(model)
+   ```
+
+2. **API Key Loading**:
+   ```python
+   self.api_key = os.getenv("PROVIDER_API_KEY")
+   if not self.api_key:
+       raise ValueError("PROVIDER_API_KEY environment variable is not set")
+   ```
+
+3. **API URL Configuration**:
+   ```python
+   self.api_url = "https://api.provider.com/endpoint"
+   ```
+
+**DO NOT**:
+- Hardcode API keys
+- Skip validation (always check if API key exists)
+- Make API calls in `__init__` (lazy initialization)
+
+### 3. `generate_response` Method Requirements
+
+**Method Signature**:
+```python
+def generate_response(self, prompt: str) -> str:
+```
+
+**MUST include:**
+
+1. **Headers Configuration**:
+   ```python
+   headers = {
+       "Authorization": f"Bearer {self.api_key}",
+       "Content-Type": "application/json"
+   }
+   ```
+   Note: Adjust authorization format based on provider (e.g., Anthropic uses `x-api-key`)
+
+2. **Request Payload**:
+   ```python
+   payload = {
+       "model": self.model,
+       "messages": [{"role": "user", "content": prompt}]
+   }
+   ```
+   Adapt structure to match provider's API specification
+
+3. **HTTP Client with Timeout**:
+   ```python
+   with httpx.Client(timeout=30.0) as client:
+       response = client.post(self.api_url, json=payload, headers=headers)
+       response.raise_for_status()
+   ```
+
+4. **Response Parsing**:
+   ```python
+   data = response.json()
+   return data["path"]["to"]["content"]  # Adjust path based on API response
+   ```
+
+5. **Error Handling**:
+   ```python
+   try:
+       # API call logic
+   except Exception as e:
+       raise Exception(f"ProviderName API error: {str(e)}")
+   ```
+
+**DO NOT**:
+- Use async/await (keep synchronous)
+- Use provider's official SDK
+- Implement retry logic (not in current scope)
+- Log sensitive information (prompts, API keys)
+
+### 4. Type Hints (MANDATORY)
+
+All methods and parameters MUST include type hints:
+
+```python
+def __init__(self, model: str) -> None:
+    ...
+
+def generate_response(self, prompt: str) -> str:
+    ...
+```
+
+### 5. Docstrings (MANDATORY)
+
+All classes and methods MUST include docstrings:
+
+```python
+class ProviderName(LLMProvider):
+    """DeepSeek API provider implementation."""
+    
+    def generate_response(self, prompt: str) -> str:
+        """
+        Generate a response using DeepSeek API.
+        
+        Args:
+            prompt: The input prompt/question
+            
+        Returns:
+            The generated text response
+        """
+```
+
+## Provider-Specific Considerations
+
+### API Authentication Patterns
+
+Different providers use different authentication methods:
+
+**Bearer Token (OpenAI style)**:
+```python
+headers = {
+    "Authorization": f"Bearer {self.api_key}",
+    "Content-Type": "application/json"
+}
+```
+
+**Custom Header (Anthropic style)**:
+```python
+headers = {
+    "x-api-key": self.api_key,
+    "anthropic-version": "2023-06-01",
+    "Content-Type": "application/json"
+}
+```
+
+### Request Payload Variations
+
+Adapt the payload structure to match provider's API:
+
+**Standard Chat Format**:
+```python
+payload = {
+    "model": self.model,
+    "messages": [{"role": "user", "content": prompt}]
+}
+```
+
+**With Additional Parameters**:
+```python
+payload = {
+    "model": self.model,
+    "messages": [{"role": "user", "content": prompt}],
+    "max_tokens": 1024,  # Provider-specific
+    "temperature": 0.7    # Provider-specific
+}
+```
+
+### Response Parsing Examples
+
+**OpenAI Response Structure**:
+```python
+# Response: {"choices": [{"message": {"content": "..."}}]}
+return data["choices"][0]["message"]["content"]
+```
+
+**Anthropic Response Structure**:
+```python
+# Response: {"content": [{"text": "..."}]}
+return data["content"][0]["text"]
+```
+
+## Step 3: Register in Factory
+
+After implementing the provider, register it in `providers/factory.py`:
+
+```python
+class ProviderFactory:
+    @staticmethod
+    def get_provider(provider_name: str, model: str) -> LLMProvider:
+        providers = {
+            "openai": OpenAIProvider,
+            "anthropic": AnthropicProvider,
+            "deepseek": DeepSeekProvider,  # Add your provider here
+        }
+        
+        provider_class = providers.get(provider_name.lower())
+        if not provider_class:
+            raise ValueError(f"Unknown provider: {provider_name}")
+        
+        return provider_class(model)
+```
+
+## Step 4: Export in Package
+
+Update `providers/__init__.py` to export your provider:
+
+```python
+from .base import LLMProvider
+from .openai_provider import OpenAIProvider
+from .anthropic_provider import AnthropicProvider
+from .deepseek_provider import DeepSeekProvider  # Add this line
+from .factory import ProviderFactory
+
+__all__ = [
+    "LLMProvider",
+    "OpenAIProvider",
+    "AnthropicProvider",
+    "DeepSeekProvider",  # Add this line
+    "ProviderFactory"
+]
+```
+
+## Step 5: Update Environment Variables
+
+Add the API key to `.env.example`:
+
+```bash
+# Existing keys
+OPENAI_API_KEY=your_openai_api_key_here
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+
+# New provider
+DEEPSEEK_API_KEY=your_deepseek_api_key_here
+```
+
+## Testing Your Provider
+
+### Manual Testing
+
+1. **Set environment variable**:
+   ```bash
+   export DEEPSEEK_API_KEY="your-key-here"
+   ```
+
+2. **Test import**:
+   ```bash
+   python -c "from providers import DeepSeekProvider; print('OK')"
+   ```
+
+3. **Start server**:
+   ```bash
+   uvicorn main:app --reload
+   ```
+
+4. **Test endpoint**:
+   ```bash
+   curl -X POST "http://localhost:8000/chat" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "provider": "deepseek",
+       "model": "deepseek-chat",
+       "prompt": "Hello, world!"
+     }'
+   ```
+
+### Expected Behavior
+
+- **Success**: Returns 200 with provider response
+- **Invalid API key**: Returns 500 with "environment variable is not set" message
+- **API error**: Returns 500 with descriptive error message
+
+## Common Pitfalls to Avoid
+
+1. **Using async/await**: Keep HTTP calls synchronous
+2. **Forgetting super().__init__()**: Always call parent constructor
+3. **Hardcoding values**: Use environment variables for secrets
+4. **Missing type hints**: All methods need type annotations
+5. **Incomplete error handling**: Always wrap API calls in try/except
+6. **Wrong timeout**: Always use 30.0 seconds for httpx.Client
+7. **Using SDK**: Use httpx directly, not official provider SDKs
+8. **Modifying base.py**: Never modify the abstract base class
+9. **Complex logic in __init__**: Keep initialization simple, no API calls
+10. **Logging sensitive data**: Never log API keys or full prompts
+
+## Reference Examples
+
+- **OpenAI Provider**: @providers/openai_provider.py (simple bearer token auth)
+- **Anthropic Provider**: @providers/anthropic_provider.py (custom header auth)
+- **Base Class**: @providers/base.py (contract definition)
+- **Factory**: @providers/factory.py (registration pattern)
+
+## Checklist for New Providers
+
+Before submitting a new provider, verify:
+
+- [ ] Inherits from `LLMProvider`
+- [ ] Implements `generate_response(prompt: str) -> str`
+- [ ] Validates API key in `__init__`
+- [ ] Uses httpx.Client with 30s timeout
+- [ ] Includes all type hints
+- [ ] Includes docstrings on class and methods
+- [ ] Uses try/except for error handling
+- [ ] Registered in `providers/factory.py`
+- [ ] Exported in `providers/__init__.py`
+- [ ] Added to `.env.example`
+- [ ] Tested manually with API key
+- [ ] Follows naming conventions (snake_case file, PascalCase class)
+- [ ] No hardcoded secrets
+- [ ] No use of async/await
+
+## Summary
+
+Implementing a new provider requires:
+1. Create provider file inheriting from `LLMProvider`
+2. Implement `generate_response` with httpx
+3. Validate API key in `__init__`
+4. Register in factory dictionary
+5. Export in `__init__.py`
+6. Update `.env.example`
+7. Test manually
+
+Always refer to @providers/openai_provider.py as the canonical example.
