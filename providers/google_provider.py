@@ -17,8 +17,8 @@ def call_gemini(prompt: str, model: str = "gemini-pro") -> str:
         response = geminiModel.generate_content(prompt)
         
         return response.text
-    except:
-        return "Something went wrong with Gemini"
+    except GoogleAPIError as e:
+        return f"Gemini API error: {e}"
 
 
 def QuickGeminiCall(userInput, modelName="gemini-1.5-flash"):
