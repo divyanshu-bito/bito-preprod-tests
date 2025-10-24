@@ -122,7 +122,7 @@ if __name__ == "__main__":
     
     # Alternative usage
     print("\n---\n")
-    print(GrokQuickCall("Tell me about Grok"))
+    print(grok_quick_call("Tell me about Grok"))
     
     # Minimalist function
     print("\n---\n")
