@@ -43,5 +43,6 @@ class AnthropicProvider(LLMProvider):
                 response.raise_for_status()
                 data = response.json()
                 return data["content"][0]["text"]
-        except Exception as e:
-            raise Exception(f"Anthropic API error: {str(e)}")
+        except (httpx.RequestError, httpx.HTTPStatusError) as e:
+            error_msg = f"Anthropic API error: {e!s}"
+            raise Exception(error_msg) from e
