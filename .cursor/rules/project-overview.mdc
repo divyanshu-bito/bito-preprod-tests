@@ -1,0 +1,121 @@
+---
+description: "High-level project architecture, design patterns, and coding standards for the LLM Proxy application"
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# LLM Proxy - Project Overview
+
+## Project Purpose
+
+The LLM Proxy is a FastAPI-based application that provides a unified interface to multiple Large Language Model (LLM) providers. It implements the Factory Design Pattern to abstract provider-specific implementations behind a common interface.
+
+## Tech Stack
+
+- **Language**: Python 3.x
+- **Framework**: FastAPI (async web framework)
+- **HTTP Client**: httpx (synchronous client with 30s timeout)
+- **Validation**: Pydantic v2 (request/response models)
+- **Server**: Uvicorn (ASGI server)
+- **Configuration**: python-dotenv (environment variables)
+
+## Architecture Pattern
+
+This project strictly follows the **Factory Design Pattern** with layered architecture:
+
+```
+Client Request → FastAPI → ProviderFactory → Concrete Provider → External LLM API
+```
+
+**Layers:**
+1. **Presentation Layer**: FastAPI endpoints (`main.py`)
+2. **Abstraction Layer**: ProviderFactory (`providers/factory.py`)
+3. **Business Logic Layer**: Provider implementations (`providers/*.py`)
+4. **Integration Layer**: HTTP calls to external APIs
+
+## Core Design Principles
+
+1. **Factory Pattern**: All providers MUST inherit from `LLMProvider` abstract base class
+2. **Separation of Concerns**: Provider-specific logic isolated in dedicated classes
+3. **Open/Closed Principle**: Open for extension (new providers), closed for modification
+4. **Explicit over Implicit**: Clear type hints, explicit error handling
+5. **Simplicity First**: Prioritize clarity and maintainability over premature optimization
+
+## File Structure
+
+```
+llm-proxy/
+├── main.py                      # FastAPI application entry point
+├── providers/                   # Provider package (business logic)
+│   ├── __init__.py             # Package exports
+│   ├── base.py                 # Abstract base class (contract)
+│   ├── openai_provider.py      # OpenAI implementation
+│   ├── anthropic_provider.py   # Anthropic implementation
+│   └── factory.py              # Factory pattern implementation
+├── requirements.txt             # Pinned dependencies
+├── .env.example                # Environment variable template
+├── .cursorrules                # Cursor IDE rules
+└── README.md                   # User-facing documentation
+```
+
+## Key Architectural Decisions
+
+### 1. Factory Pattern Over If/Else
+**Why**: Scalability, testability, and adherence to SOLID principles. Adding new providers requires zero modifications to existing code.
+
+### 2. httpx Over Official SDKs
+**Why**: Minimal dependencies, unified interface, full control over requests/responses, and transparency for debugging.
+
+### 3. Synchronous HTTP Calls
+**Why**: Simplicity for current scale. LLM APIs are inherently blocking. Future: Consider async for streaming.
+
+### 4. Environment Variables for Secrets
+**Why**: Security (no accidental commits), 12-factor app compliance, cloud-ready deployment.
+
+### 5. Simple Error Handling
+**Why**: Requirements specify basic error handling. No retry logic, rate limiting, or circuit breakers in current scope.
+
+## Coding Standards
+
+### Naming Conventions (STRICT)
+- **Classes**: PascalCase (`LLMProvider`, `OpenAIProvider`)
+- **Functions/Methods**: snake_case (`generate_response`, `get_provider`)
+- **Constants**: UPPER_SNAKE_CASE (`OPENAI_API_KEY`)
+- **Files**: snake_case (`openai_provider.py`, `factory.py`)
+
+### Code Style
+- **Type Hints**: Required on all function signatures
+- **Docstrings**: Required on all classes and public methods
+- **Line Length**: No strict limit, prioritize readability
+- **Imports**: Standard library → Third-party → Local (alphabetical within groups)
+
+## Security Considerations
+
+1. **API Keys**: Always load from environment variables, never hardcode
+2. **Validation**: Pydantic validates all incoming requests
+3. **Error Messages**: Never expose API keys or sensitive data in error responses
+4. **Logging**: Not implemented (future: structured logging without sensitive data)
+
+## Current Limitations
+
+- No authentication on endpoints
+- No rate limiting
+- No request retry logic
+- No response streaming
+- No request/response logging
+- No circuit breaker pattern
+
+## Adding New Providers - Quick Reference
+
+1. Create `providers/new_provider.py` inheriting from `LLMProvider`
+2. Implement `generate_response(self, prompt: str) -> str`
+3. Validate API key in `__init__`
+4. Register in `providers/factory.py` dictionary
+5. Export in `providers/__init__.py`
+
+## Reference Files
+
+- Provider base class: @providers/base.py
+- Factory implementation: @providers/factory.py
+- API structure: @main.py
