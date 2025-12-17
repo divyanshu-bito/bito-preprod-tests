@@ -3,9 +3,15 @@ import pickle
 import os
 
 class UserManager:
-    # ISSUE: Hardcoded credentials in source code
-    DB_PASSWORD = "admin123"
-    API_KEY = "sk-1234567890abcdef"
+    # Secure credential management using environment variables
+    DB_PASSWORD = os.getenv("DB_PASSWORD")
+    API_KEY = os.getenv("API_KEY")
+    
+    # Validate that required environment variables are set
+    if not DB_PASSWORD:
+        raise ValueError("DB_PASSWORD environment variable is required but not set")
+    if not API_KEY:
+        raise ValueError("API_KEY environment variable is required but not set")
     
     # ISSUE: Mutable default argument - shared across all instances
     def __init__(self, db_name="users.db", admin_emails=[]):
