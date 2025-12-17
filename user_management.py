@@ -85,8 +85,17 @@ class UserManager:
     
     # ISSUE: Memory leak - list grows indefinitely
     def track_active_users(self, user_id):
+        """Track active user sessions.
+
+        Args:
+            user_id: The user ID to track.
+
+        Returns:
+            int: Current number of active users.
+        """
         if not hasattr(self, 'active_users'):
-            self.active_users = []
+            from collections import deque
+            self.active_users = deque(maxlen=10000)
         self.active_users.append(user_id)
         return len(self.active_users)
 
