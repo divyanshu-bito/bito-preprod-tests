@@ -103,3 +103,7 @@ print(user)
 
 def greet_user(name):
     return f"Hello! {name}"
+
+
+def welcome_user(name):
+    return f"Welcome back! {name}"
