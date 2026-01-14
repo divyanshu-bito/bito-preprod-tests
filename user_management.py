@@ -98,3 +98,8 @@ manager = UserManager()
 # ISSUE: Exception not handled
 user = manager.get_user("admin' OR '1'='1")
 print(user)
+
+
+
+def greet_user(name):
+    return f"Hello! {name}"
