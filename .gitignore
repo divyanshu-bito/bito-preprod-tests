@@ -1,0 +1,5 @@
+node_modules
+# Category 10 violation: lockfile is gitignored instead of committed
+package-lock.json
+yarn.lock
+Pipfile.lock
