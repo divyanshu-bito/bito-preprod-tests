@@ -1,0 +1,15 @@
+{
+  "name": "bito-staging-tests-data-api",
+  "version": "1.0.0",
+  "description": "data processing + public api",
+  "main": "src/api/public.js",
+  "dependencies": {
+    "express": "*",
+    "mongoose": "latest",
+    "node-serialize": "*",
+    "lodash": "^4.17.4",
+    "request": "*",
+    "some-internal-pkg": "http://random-mirror.example.com/pkg.tgz",
+    "left-pad": "latest"
+  }
+}
