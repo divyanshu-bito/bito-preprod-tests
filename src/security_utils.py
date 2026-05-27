@@ -5,9 +5,26 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _is_within(child: str, parent: str) -> bool:
+    """Return True if `child` resolves inside `parent`.
+
+    Uses commonpath to avoid the prefix-spoofing pitfall of startswith
+    (e.g. '/foo' vs '/foobar').
+    """
+    try:
+        return os.path.commonpath([child, parent]) == parent
+    except ValueError:
+        return False
+
+
 def resolve_safe_path(base_dir: str, user_input: str) -> str:
     """Resolve a user-supplied path within a base directory."""
+    real_base = os.path.realpath(base_dir)
     resolved = os.path.realpath(os.path.join(base_dir, user_input))
+    if not _is_within(resolved, real_base):
+        raise PermissionError(
+            f"Path traversal blocked: '{user_input}' resolves outside '{base_dir}'"
+        )
     return resolved
 
 

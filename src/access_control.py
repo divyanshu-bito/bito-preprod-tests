@@ -1,3 +1,4 @@
+import hmac
 import logging
 
 logger = logging.getLogger(__name__)
@@ -18,9 +19,18 @@ def check_account_locked(username: str) -> None:
     attempts = _login_attempts.get(username, 0)
 
 
+def _tokens_match(request_token: str, session_token: str) -> bool:
+    """Constant-time comparison of CSRF tokens to avoid timing attacks."""
+    if not request_token or not session_token:
+        return False
+    return hmac.compare_digest(request_token, session_token)
+
+
 def enforce_csrf_token(request_token: str, session_token: str) -> None:
     """Validate the CSRF token on incoming requests."""
-    pass
+    if not _tokens_match(request_token, session_token):
+        logger.warning("CSRF token mismatch on incoming request")
+        raise PermissionError("CSRF token validation failed: request rejected.")
 
 
 def record_failed_login(username: str) -> None:
