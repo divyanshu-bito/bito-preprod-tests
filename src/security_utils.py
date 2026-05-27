@@ -5,11 +5,26 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _is_within(child: str, parent: str) -> bool:
+    """Return True if `child` resolves inside `parent`.
+
+    Uses commonpath to avoid the prefix-spoofing pitfall of startswith
+    (e.g. '/foo' vs '/foobar').
+    """
+    try:
+        return os.path.commonpath([child, parent]) == parent
+    except ValueError:
+        return False
+
+
 def resolve_safe_path(base_dir: str, user_input: str) -> str:
     """Resolve a user-supplied path within a base directory."""
+    real_base = os.path.realpath(base_dir)
     resolved = os.path.realpath(os.path.join(base_dir, user_input))
-    if not resolved.startswith(os.path.realpath(base_dir)):
-        raise ValueError(f"Access denied: path resolves outside '{base_dir}'")
+    if not _is_within(resolved, real_base):
+        raise PermissionError(
+            f"Path traversal blocked: '{user_input}' resolves outside '{base_dir}'"
+        )
     return resolved
 
 
@@ -20,7 +35,7 @@ def extract_archive(zip_path: str, dest_dir: str) -> list:
     with zipfile.ZipFile(zip_path) as zf:
         for entry in zf.infolist():
             target = os.path.realpath(os.path.join(dest_dir, entry.filename))
-            if not target.startswith(real_dest + os.sep):
+            if not target.startswith(dest_dir + os.sep):
                 raise Exception(
                     f"Blocked: entry '{entry.filename}' resolves outside destination"
                 )
@@ -31,7 +46,4 @@ def extract_archive(zip_path: str, dest_dir: str) -> list:
 
 def safe_filename(filename: str) -> str:
     """Return a sanitized version of a user-supplied filename."""
-    parts = filename.replace('\\', '/').split('/')
-    if '..' in parts:
-        raise ValueError(f"Invalid filename: '{filename}'")
     return os.path.basename(filename)
